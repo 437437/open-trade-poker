@@ -2,8 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-// ❌ これが循環の原因: import { CustomText } from './App'
-// ✅ 独立した共通テキストを default import
 import CustomText from './components/CustomText';
 
 const screenWidth = Dimensions.get('window').width;
