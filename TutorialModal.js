@@ -1,9 +1,10 @@
 // TutorialModal.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { CustomText } from './App'; // 共通Textコンポーネントを利用
-import { useEffect } from 'react';
+// ❌ これが循環の原因: import { CustomText } from './App'
+// ✅ 独立した共通テキストを default import
+import CustomText from './components/CustomText';
 
 const screenWidth = Dimensions.get('window').width;
 const wrapperWidth = Math.min(screenWidth, 400);
@@ -50,7 +51,7 @@ export default function TutorialModal({ visible, onClose }) {
 
   const next = () => {
     if (page < PAGES.length - 1) setPage(page + 1);
-    else onClose();
+    else onClose?.();
   };
 
   const prev = () => {
@@ -58,13 +59,18 @@ export default function TutorialModal({ visible, onClose }) {
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent
+      onRequestClose={onClose} // iOSのスワイプ閉じる対応
+    >
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <View style={styles.header}>
             <CustomText style={styles.title}>{PAGES[page].title}</CustomText>
             <TouchableOpacity onPress={onClose}>
-                <FontAwesome5 name="times" size={20} color="#444" />
+              <FontAwesome5 name="times" size={20} color="#444" />
             </TouchableOpacity>
           </View>
 
@@ -91,6 +97,7 @@ export default function TutorialModal({ visible, onClose }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)', // 半透明背景（見やすく）
     justifyContent: 'center',
     alignItems: 'center',
   },
