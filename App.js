@@ -132,7 +132,7 @@ export default function App() {
                 setScene('home');
               },
             }}
-            lobby={{ online: onlineCount, waiting }}
+            lobby={{ online: onlineCount, waiting, loading, isStale }}
           />
         )}
 

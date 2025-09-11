@@ -6,12 +6,12 @@ import CustomText from './CustomText';
 export default function LobbyInfo({ online=0, waiting=0, loading=false, isStale=false, style }) {
   return (
     <View style={[styles.wrap, style]}>
-      <View className="pill" style={styles.pill}>
+      <View style={styles.pill}>
         <CustomText style={styles.text}>
           オンライン: {loading ? '取得中…' : `${online}${isStale ? ' ⟳' : ''}`}
         </CustomText>
       </View>
-      <View className="pill" style={styles.pill}>
+      <View style={styles.pill}>
         <CustomText style={styles.text}>
           待機中: {loading ? '取得中…' : `${waiting}${isStale ? ' ⟳' : ''}`}
         </CustomText>
