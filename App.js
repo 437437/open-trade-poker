@@ -17,6 +17,8 @@ import useLobbyStats from './hooks/useLobbyStats';
 import LobbyInfo from './components/LobbyInfo';
 import VersionModal from './components/VersionModal';
 
+import usePresence from './hooks/usePresence';
+
 const SERVER_URL = 'https://open-trade-poker-server.onrender.com';
 
 export default function App() {
@@ -32,7 +34,9 @@ export default function App() {
 
   const online = useOnlineGame(SERVER_URL);
   const ai = useAIGame();
-  const { online: onlineCount, waiting } = useLobbyStats(SERVER_URL);
+  const { online: onlineCount, waiting, loading, isStale } = useLobbyStats(SERVER_URL);
+
+  usePresence(SERVER_URL);
 
   // onlineフック側でhomeに戻したらApp側のsceneも同期
   useEffect(() => {
@@ -72,7 +76,7 @@ export default function App() {
             />
 
             {/* ホームのロビー人数 */}
-            <LobbyInfo online={onlineCount} waiting={waiting} style={{ marginTop: 12 }} />
+            <LobbyInfo online={onlineCount} waiting={waiting} loading={loading} isStale={isStale} style={{ marginTop: 12 }} />
           </View>
         )}
 
@@ -100,7 +104,7 @@ export default function App() {
               leaveGame: () => { online.leaveGame(); setScene('home'); },
               startMatching: online.startMatching,
             }}
-            lobby={{ online: onlineCount, waiting }}
+            lobby={{ online: onlineCount, waiting, loading, isStale }}
           />
         )}
 

@@ -16,7 +16,7 @@ function removeExactCards(from, cardsToRemove) {
   return result;
 }
 export function calculateScore(hand) {
-  const types = ['A','B','C','D'];
+  const types = ['A', 'B', 'C', 'D'];
   let score = 0;
   for (const t of types) {
     const c = hand.filter(x => x === t).length;
@@ -24,6 +24,7 @@ export function calculateScore(hand) {
     else if (c === 3) score += 5;
     else if (c === 4) score += 10;
     else if (c === 5) score += 20;
+    else if (c === 6) score += 30; 
   }
   return score;
 }
