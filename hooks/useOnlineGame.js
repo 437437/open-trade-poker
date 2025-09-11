@@ -1,7 +1,7 @@
 // hooks/useOnlineGame.js
 import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { io } from 'socket.io-client';
+import { getSocket } from '../lib/socket';
 import { calculateScore } from '../shared/gameLogic';
 
 export default function useOnlineGame(SERVER_URL) {
@@ -20,13 +20,12 @@ export default function useOnlineGame(SERVER_URL) {
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [countdown, setCountdown] = useState(30);
 
-  // ★ 待機の経過秒
+  // 待機の経過秒
   const [waitElapsed, setWaitElapsed] = useState(0);
   const returnTimerRef = useRef(null);
-
   const opponentIdRef = useRef(null);
 
-  // refs
+  // refs（イベント内から最新値を読むため）
   const phaseRef = useRef(phase);             useEffect(()=>{ phaseRef.current = phase; }, [phase]);
   const isMyTurnRef = useRef(isMyTurn);       useEffect(()=>{ isMyTurnRef.current = isMyTurn; }, [isMyTurn]);
   const selectedRef = useRef(selectedIndexes);useEffect(()=>{ selectedRef.current = selectedIndexes; }, [selectedIndexes]);
@@ -34,12 +33,14 @@ export default function useOnlineGame(SERVER_URL) {
   const opponentSlotCountRef = useRef(opponentSlotCount);
   useEffect(()=>{ opponentSlotCountRef.current = opponentSlotCount; }, [opponentSlotCount]);
 
-  // ===== ソケット接続 =====
+  // ===== ソケット接続（共有インスタンス使用）=====
   useEffect(() => {
-    const s = io(SERVER_URL, { transports: ['websocket'] });
+    const s = getSocket(SERVER_URL);
     setSocket(s);
 
-    const onConnect = () => console.log('✅ Connected');
+    const onConnect = () => {
+      console.log('✅ Connected');
+    };
 
     const onMatch = ({ opponentId }) => {
       opponentIdRef.current = opponentId;
@@ -48,14 +49,23 @@ export default function useOnlineGame(SERVER_URL) {
       setMessage(`対戦相手が見つかりました！\nゲーム開始まで... 3`);
 
       // 3,2,1 カウントダウン
+      const start = Date.now();
       const timer = setInterval(() => {
         setPreGameCountdown(prev => {
-          if (prev <= 1) { clearInterval(timer); return 0; }
           const next = prev - 1;
+          if (next <= 0) {
+            clearInterval(timer);
+            return 0;
+          }
           setMessage(`対戦相手が見つかりました！\nゲーム開始まで... ${next}`);
           return next;
         });
       }, 1000);
+
+      // 念のため、unmount時に止める
+      const clearCountdown = () => clearInterval(timer);
+      // この effect の cleanup で実行されるように返す
+      onMatch._cleanup = clearCountdown;
     };
 
     const onStartGame = (data) => {
@@ -87,7 +97,7 @@ export default function useOnlineGame(SERVER_URL) {
       setOpponentSlot([...opponentSlot]);
       setIsRevealing(true);
 
-      setTimeout(() => {
+      const t = setTimeout(() => {
         setOpponentSlot([]);
         setIsRevealing(false);
 
@@ -117,6 +127,8 @@ export default function useOnlineGame(SERVER_URL) {
         const act  = isMyTurn ? '1〜4枚カードを選んでください' : '相手の選択を待っています…';
         setMessage(`${head}\n${role}${act}`);
       }, 3000);
+
+      onExchange._cleanup = () => clearTimeout(t);
     };
 
     const onTick = ({ countdown }) => {
@@ -128,9 +140,11 @@ export default function useOnlineGame(SERVER_URL) {
 
     const onOpponentLeft = () => {
       setMessage('相手が離脱しました。ホームに戻ります');
-      setTimeout(() => resetToHome(), 3000);
+      const t = setTimeout(() => resetToHome(), 3000);
+      onOpponentLeft._cleanup = () => clearTimeout(t);
     };
 
+    // ここで購読
     s.on('connect', onConnect);
     s.on('match', onMatch);
     s.on('start-game', onStartGame);
@@ -139,6 +153,7 @@ export default function useOnlineGame(SERVER_URL) {
     s.on('countdown-tick', onTick);
     s.on('opponent-left', onOpponentLeft);
 
+    // cleanup: 共有ソケットなので disconnect はしない。listener だけ外す。
     return () => {
       s.off('connect', onConnect);
       s.off('match', onMatch);
@@ -147,7 +162,11 @@ export default function useOnlineGame(SERVER_URL) {
       s.off('exchange-complete', onExchange);
       s.off('countdown-tick', onTick);
       s.off('opponent-left', onOpponentLeft);
-      s.disconnect();
+
+      // 各イベント内で仕込んだタイマーの掃除
+      onMatch._cleanup?.();
+      onExchange._cleanup?.();
+      onOpponentLeft._cleanup?.();
     };
   }, [SERVER_URL]);
 
@@ -163,7 +182,7 @@ export default function useOnlineGame(SERVER_URL) {
     }, ms);
   }
 
-  // ===== バックグラウンドで自動キャンセル =====
+  // バックグラウンドで自動キャンセル
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       if (next !== 'active') {
@@ -176,7 +195,7 @@ export default function useOnlineGame(SERVER_URL) {
     return () => sub.remove();
   }, [scene, socket]);
 
-  // ===== 待機中の経過秒カウント（0→60）＆自動リターン =====
+  // 待機中の経過秒カウント（0→60）＆自動リターン
   useEffect(() => {
     if (scene !== 'waiting') return;
     setWaitElapsed(0);
@@ -234,14 +253,13 @@ export default function useOnlineGame(SERVER_URL) {
     socket?.emit('start-matching');
     setScene('waiting');
     setMessage('対戦相手を探しています…');
-    setWaitElapsed(0); // 念のため
+    setWaitElapsed(0);
   }
   function cancelMatching() {
     if (scene === 'waiting') {
       socket?.emit('cancel-matching');
       resetToHome();
     }
-    // matched（3,2,1中）は無視
   }
   function leaveGame() {
     socket?.emit('leave-game');
@@ -261,7 +279,6 @@ export default function useOnlineGame(SERVER_URL) {
     opponentIdRef.current = null;
 
     setScene('home');
-    // setMessage('待機中…'); ← これ不要だった！
     setHand([]); setOppHand([]);
     setSelectedIndexes([]);
     setOpponentSlot([]); setOpponentSlotCount(0);
@@ -276,7 +293,7 @@ export default function useOnlineGame(SERVER_URL) {
     // state
     scene, message, hand, oppHand, selectedIndexes, setSelectedIndexes,
     opponentSlot, opponentSlotCount, isRevealing, phase, isMyTurn, turnCount, countdown,
-    waitElapsed, // ★ 追加
+    waitElapsed,
     // actions
     startMatching, cancelMatching, leaveGame, submitSlot, resetToHome, setScene, setMessage,
   };

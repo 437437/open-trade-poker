@@ -2,7 +2,7 @@
   "expo": {
     "name": "Open Trade Poker",
     "slug": "open-trade-poker",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/open.png",
     "userInterfaceStyle": "light",
@@ -35,7 +35,7 @@
         "projectId": "4b8e7692-f022-47d0-a61b-f17501020eab"
       }
     },
-    "runtimeVersion": "1.1.0",
+    "runtimeVersion": "1.1.1",
     "updates": {
       "url": "https://u.expo.dev/4b8e7692-f022-47d0-a61b-f17501020eab"
     }

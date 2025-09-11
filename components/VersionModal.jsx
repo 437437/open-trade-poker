@@ -7,6 +7,13 @@ import CustomButton from './CustomButton';
 
 const versionHistory = [
   {
+    version: '1.1.1',
+    date: '2025-09-11',
+    changes: [
+      'ロビー情報（オンライン人数・待機人数）が実際より多く表示される問題を修正',
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2025-09-07',
     changes: [
